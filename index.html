@@ -70,6 +70,7 @@ function connect(){
   client=mqtt.connect(S.url,{username:S.user,password:S.pass,clientId:'web-'+Math.random().toString(16).slice(2,10),reconnectPeriod:4000,connectTimeout:10000});
   client.on('connect',()=>{conn=true;client.subscribe([S.base+'/estado',S.base+'/online']);badge()});
   client.on('close',()=>{conn=false;badge()});
+  client.on('reconnect',()=>{const b=$('badge');b.className='badge';b.innerHTML='<i></i>Reconectando…'});
   client.on('error',e=>{$('sub').textContent='Error MQTT: '+e.message});
   client.on('message',(tp,msg)=>{
     const s=msg.toString();
@@ -133,4 +134,12 @@ $('form').addEventListener('submit',e=>{e.preventDefault();
   $('setup').open=false;connect()});
 if(S){$('url').value=S.url;$('user').value=S.user;$('base').value=S.base;connect()}else $('setup').open=true;
 badge();setInterval(live,500);
+// iPhone/Android cortan la conexión al bloquear la pantalla o cambiar de app: al volver, reconecta al momento
+let hiddenAt=0;
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'){hiddenAt=Date.now();return}
+  if(S&&(!conn||Date.now()-hiddenAt>5000))connect();
+});
+window.addEventListener('pageshow',e=>{if(e.persisted&&S)connect()});
+window.addEventListener('online',()=>{if(S&&!conn)connect()});
 </script></body></html>
