@@ -12,6 +12,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--water);outline-
 .top{background:var(--deep);color:#eaf3e6;padding:18px 14px}
 .top div{max-width:640px;margin:0 auto}
 h1{font-size:24px;margin:0}
+.clk{margin-top:12px;display:none}.clk.on{display:block}.clk b{font-size:clamp(34px,10vw,46px);font-weight:800;line-height:1;font-variant-numeric:tabular-nums;display:block}.clk span{font-size:15px;color:#b8d2bb}.clk .x{display:inline-block;background:#f3b63f;color:#113420;border-radius:8px;padding:0 8px;font-weight:800;margin-right:6px}
 .badge{font-size:14px;color:#b8d2bb}.badge i{display:inline-block;width:9px;height:9px;border-radius:50%;background:#888;margin-right:6px}
 .badge.ok i{background:#5fd36b}.badge.bad i{background:#ff6b57}
 main{max-width:640px;margin:0 auto;padding:16px 14px 120px;display:grid;gap:14px}
@@ -41,7 +42,7 @@ h2{font-size:18px;margin:0 0 10px}
 .f{display:grid;gap:10px;margin-top:12px}.f label{display:grid;gap:4px;font-size:14px;font-weight:600}
 summary{cursor:pointer;font-weight:700}
 </style></head><body>
-<header class="top"><div><h1>Programa de riego</h1><div class="badge" id="badge"><i></i>Sin conectar</div></div></header>
+<header class="top"><div><h1>Programa de riego</h1><div class="badge" id="badge"><i></i>Sin conectar</div><div class="clk" id="clk"><b id="clkT"></b><span id="clkS"></span></div></div></header>
 <main>
 <section class="card"><h2>Días de riego</h2>
 <div class="days" id="days"></div>
@@ -80,7 +81,7 @@ const key=c=>JSON.stringify({days:c.days.map(Boolean),starts:[...c.starts].sort(
 function render(){
   $('days').innerHTML=DN.map((d,i)=>`<button aria-pressed="${cfg.days[i]}" aria-label="${DL[i]}" onclick="cfg.days[${i}]=!cfg.days[${i}];edit()">${d}</button>`).join('');
   $('starts').innerHTML=cfg.starts.length?cfg.starts.map((s,k)=>`<div class="st"><input type="time" value="${s}" aria-label="Hora de inicio ${k+1}" onchange="setStart(${k},this.value)"><button onclick="cfg.starts.splice(${k},1);edit()">Borrar</button></div>`).join(''):'<p class="hint">Sin horas: no regará.</p>';
-  $('zones').innerHTML=cfg.zones.map((m,i)=>`<div class="z"><b>Zona ${i+1}</b><div class="step"><button onclick="setM(${i},-5)" aria-label="Menos zona ${i+1}">−</button><input type="number" inputmode="numeric" value="${m}" aria-label="Minutos zona ${i+1}" onchange="setM(${i},0,this.value)"><button onclick="setM(${i},5)" aria-label="Más zona ${i+1}">+</button></div></div>`).join('');
+  $('zones').innerHTML=cfg.zones.map((m,i)=>`<div class="z"><b>Zona ${i+1}</b><div class="step"><button onclick="setM(${i},-1)" aria-label="Menos zona ${i+1}">−</button><input type="number" inputmode="numeric" value="${m}" aria-label="Minutos zona ${i+1}" onchange="setM(${i},0,this.value)"><button onclick="setM(${i},1)" aria-label="Más zona ${i+1}">+</button></div></div>`).join('');
   $('total').textContent=fm(cfg.zones.reduce((a,b)=>a+b,0));
   status();
 }
@@ -113,16 +114,28 @@ function send(){
   client.publish(S.base+'/config',JSON.stringify(body),{qos:1,retain:true});
   changed=false;sent=true;status();
 }
+const DW={L:'Lunes',M:'Martes',X:'Miércoles',J:'Jueves',V:'Viernes',S:'Sábado',D:'Domingo'};
+let lastClk=0;
+function clock(c){
+  lastClk=Date.now();
+  $('clk').className='clk on';
+  $('clkT').textContent=(DW[c.d]||'')+' '+c.t;
+  const x=c.x>1?`<span class="x">x${c.x}</span>`:'';
+  const st=c.z?`Regando zona ${c.z} · quedan ${Math.floor(c.left/60)}:${String(c.left%60).padStart(2,'0')}`:'En espera';
+  $('clkS').innerHTML=x+st;
+}
+setInterval(()=>{if(lastClk&&Date.now()-lastClk>5000)$('clk').className='clk'},1000);
 function connect(){
   if(client)client.end(true);
   conn=false;badge();
   client=mqtt.connect(S.url,{username:S.user,password:S.pass,clientId:'web-'+Math.random().toString(16).slice(2,10),reconnectPeriod:4000,connectTimeout:10000});
-  client.on('connect',()=>{conn=true;client.subscribe([S.base+'/estado',S.base+'/online']);badge()});
+  client.on('connect',()=>{conn=true;client.subscribe([S.base+'/estado',S.base+'/online',S.base+'/reloj']);badge()});
   client.on('close',()=>{conn=false;badge()});
   client.on('reconnect',()=>{const b=$('badge');b.className='badge';b.innerHTML='<i></i>Reconectando…'});
   client.on('error',e=>{$('msg').textContent='Error: '+e.message;$('msg').className='warn'});
   client.on('message',(tp,msg)=>{
     const s=msg.toString();
+    if(tp===S.base+'/reloj'){try{clock(JSON.parse(s))}catch(e){}return}
     if(tp===S.base+'/online'){online=s==='1';badge();return}
     try{const j=JSON.parse(s);remote={days:j.days,starts:j.starts,zones:j.zones,saved:j.saved};
       if(!changed&&!sent){cfg={days:[...j.days],starts:[...j.starts],zones:[...j.zones]};render()}
