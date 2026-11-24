@@ -1,0 +1,7 @@
+# Claves de WiFi y MQTT
+secrets.h
+
+# Compilación de Arduino
+build/
+*.bin
+*.elf
