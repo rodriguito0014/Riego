@@ -3,67 +3,116 @@
 <title>Riego</title>
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <style>
-:root{color-scheme:light dark;--bg:light-dark(#eef2ea,#0d1710);--panel:light-dark(#fff,#16241a);--ink:light-dark(#14231a,#e6efe7);--mut:light-dark(#5b6b60,#93a79a);--line:light-dark(#d5ded3,#2a3b2f);--deep:#113420;--water:#2a9df4;--sun:#f3b63f}
+:root{color-scheme:light dark;--bg:light-dark(#eef2ea,#0d1710);--panel:light-dark(#fff,#16241a);--ink:light-dark(#14231a,#e6efe7);--mut:light-dark(#5b6b60,#93a79a);--line:light-dark(#d5ded3,#2a3b2f);--deep:#113420;--water:#2a9df4;--ok:#2f9e44;--bad:#c8402e}
 *{box-sizing:border-box;min-width:0}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
-button,input{font:inherit;color:inherit}button{min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--panel);padding:0 14px;font-weight:600}
+button,input{font:inherit;color:inherit}
+button{min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--panel);padding:0 14px;font-weight:600;cursor:pointer}
 button:disabled{opacity:.45}
-button.pri{background:var(--water);border-color:var(--water);color:#fff}
-.top{background:var(--deep);color:#eaf3e6;padding:16px 14px 20px}.head{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap;max-width:1000px;margin:0 auto 12px}
-h1{font-size:20px;margin:0}.badge{font-size:13px;color:#b8d2bb}.badge i{display:inline-block;width:9px;height:9px;border-radius:50%;background:#888;margin-right:6px}
+button:focus-visible,input:focus-visible{outline:3px solid var(--water);outline-offset:2px}
+.top{background:var(--deep);color:#eaf3e6;padding:18px 14px}
+.top div{max-width:640px;margin:0 auto}
+h1{font-size:24px;margin:0}
+.badge{font-size:14px;color:#b8d2bb}.badge i{display:inline-block;width:9px;height:9px;border-radius:50%;background:#888;margin-right:6px}
 .badge.ok i{background:#5fd36b}.badge.bad i{background:#ff6b57}
-.clock{font-size:clamp(34px,10vw,50px);font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
-.garden{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:1000px;margin:0 auto}
-.bed{position:relative;border-radius:16px;overflow:hidden;aspect-ratio:1/.82;background:repeating-linear-gradient(170deg,#3d7f3c 0 9px,#468c43 9px 18px);border:3px solid #6b4a2f;display:flex;flex-direction:column;justify-content:space-between;padding:8px;cursor:pointer}
-.bed.off{filter:saturate(.35) brightness(.8)}.bed.on{border-color:var(--water)}.bed.done{border-color:var(--sun)}
-.bed .n{font-weight:800;font-size:14px;text-shadow:0 1px 2px #0008;z-index:2}.bed .s{font-size:12px;font-weight:600;background:#0007;border-radius:8px;padding:2px 7px;align-self:flex-start;z-index:2;white-space:nowrap}
-.bed .h{position:absolute;left:50%;top:55%;width:12px;height:12px;margin:-6px;border-radius:50%;background:#cfd6d0}
-.bed .r{position:absolute;left:50%;top:55%;width:120%;aspect-ratio:1;translate:-50% -50%;border-radius:50%;border:3px dotted #bfe6ff;opacity:0}
-.bed.on .r{animation:sp 1.6s linear infinite}.bed.on .r2{animation-delay:.8s}@keyframes sp{0%{scale:.1;opacity:.95}100%{scale:1;opacity:0}}
-@media(prefers-reduced-motion:reduce){.bed.on .r{animation:none;opacity:.8;scale:.6}}
-.bed .bar{position:absolute;left:0;bottom:0;height:5px;background:var(--water);z-index:2}
-.status{max-width:1000px;margin:12px auto 0;display:grid;gap:10px}.big{font-size:clamp(20px,5.5vw,26px);font-weight:800}.sub{color:#b8d2bb;font-size:14px}
-.row{display:flex;flex-wrap:wrap;gap:8px}.top button{background:#ffffff14;border-color:#ffffff30;color:#fff}.top .pri{background:var(--water)}.top .stop{background:#c8402e;border-color:#c8402e}
-main{max-width:1000px;margin:0 auto;padding:16px 14px 40px;display:grid;gap:16px}@media(min-width:820px){main{grid-template-columns:1fr 1fr}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px}h2{font-size:18px;margin:0 0 4px}.hint{color:var(--mut);font-size:13px;margin:0 0 10px}
-.z{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
-.z .name{border:0;background:transparent;font-weight:600;min-height:44px;width:100%}.step{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.step button{border:0;border-radius:0;width:44px;padding:0;font-size:20px}.step input{width:52px;text-align:center;border:0;background:transparent;font-weight:800}
+main{max-width:640px;margin:0 auto;padding:16px 14px 120px;display:grid;gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px}
+h2{font-size:18px;margin:0 0 10px}
+.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.days button{padding:0;font-size:17px}
+.days button[aria-pressed=true]{background:var(--water);border-color:var(--water);color:#fff}
+.quick{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}.quick button{font-size:14px;min-height:38px}
 .st{display:flex;gap:10px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.st:first-child{border-top:0}
 .st input,.add input,.f input{min-height:44px;font-size:16px;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:0 10px}
-.st span{flex:1}.add{display:flex;gap:8px;margin-top:10px}.add input{flex:1}
-.tot{display:flex;justify-content:space-between;border-top:2px solid var(--line);padding-top:10px;font-weight:800}
-.log{list-style:none;margin:0;padding:0;max-height:260px;overflow:auto;font-size:14px}.log li{padding:5px 0;border-top:1px solid var(--line)}.log b{color:var(--mut);font-weight:400;margin-right:8px}
-.f{display:grid;gap:10px}.f label{display:grid;gap:4px;font-size:14px;font-weight:600}
+.st input{flex:1;font-weight:800}
+.add{display:flex;gap:8px;margin-top:10px}.add input{flex:1}
+.z{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
+.z:first-child{border-top:0}.z b{font-weight:600}
+.step{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.step button{border:0;border-radius:0;width:44px;padding:0;font-size:20px}
+.step input{width:56px;text-align:center;border:0;background:transparent;font-weight:800;font-size:16px;-moz-appearance:textfield}
+.step input::-webkit-inner-spin-button{-webkit-appearance:none}
+.tot{display:flex;justify-content:space-between;border-top:2px solid var(--line);padding-top:10px;margin-top:4px;font-weight:800}
+.hint{color:var(--mut);font-size:14px;margin:0}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:12px 14px calc(12px + env(safe-area-inset-bottom))}
+.bar div{max-width:640px;margin:0 auto;display:grid;gap:6px}
+.save{background:var(--water);border-color:var(--water);color:#fff;font-size:17px;min-height:52px}
+#msg{font-size:14px;text-align:center;color:var(--mut)}#msg.ok{color:var(--ok)}#msg.warn{color:var(--bad)}
+.f{display:grid;gap:10px;margin-top:12px}.f label{display:grid;gap:4px;font-size:14px;font-weight:600}
+summary{cursor:pointer;font-weight:700}
 </style></head><body>
-<section class="top"><div class="head"><div><h1>Riego · 6 zonas</h1><div class="badge" id="badge"><i></i>Sin conectar</div></div><div class="clock" id="clock">--:--</div></div>
-<div class="garden" id="garden"></div>
-<div class="status"><div><div class="big" id="big">Esperando datos…</div><div class="sub" id="sub"></div></div>
-<div class="row"><button class="pri" onclick="cmd('run')">Regar ahora</button><button id="skip" onclick="cmd('skip')">Siguiente zona</button><button class="stop" id="stop" onclick="cmd('stop')">Parar</button></div></div></section>
+<header class="top"><div><h1>Programa de riego</h1><div class="badge" id="badge"><i></i>Sin conectar</div></div></header>
 <main>
-<section class="card"><h2>Minutos por zona</h2><p class="hint">Riega de la zona 1 a la 6. Con 0 minutos se salta. ▶ prueba solo esa zona.</p><div id="zones"><p class="hint">Aparecerá al recibir datos del ESP32.</p></div><div class="tot"><span>Duración del ciclo</span><span id="total">–</span></div></section>
-<section class="card"><h2>Horas de inicio</h2><p class="hint">Cada hora lanza un ciclo completo (máximo 8).</p><div id="starts"></div>
-<div class="add"><input type="time" id="ns" value="06:30" aria-label="Nueva hora"><button class="pri" onclick="addStart()">Añadir</button></div></section>
-<section class="card"><h2>Registro</h2><ul class="log" id="log"></ul></section>
-<details class="card" id="setup"><summary><b>Conexión MQTT</b></summary>
-<form class="f" id="form" style="margin-top:12px">
+<section class="card"><h2>Días de riego</h2>
+<div class="days" id="days"></div>
+<div class="quick"><button onclick="setDays([1,1,1,1,1,1,1])">Todos</button><button onclick="setDays([1,0,1,0,1,0,1])">Alternos</button><button onclick="setDays([0,0,0,0,0,0,0])">Ninguno</button></div>
+</section>
+<section class="card"><h2>Horas de inicio</h2>
+<div id="starts"></div>
+<div class="add"><input type="time" id="ns" value="06:30" aria-label="Nueva hora"><button onclick="addStart()">Añadir</button></div>
+<p class="hint" style="margin-top:8px">Cada hora riega de la zona 1 a la 6. Máximo 8 horas.</p>
+</section>
+<section class="card"><h2>Minutos por zona</h2>
+<div id="zones"></div>
+<div class="tot"><span>Cada ciclo dura</span><span id="total"></span></div>
+<p class="hint" style="margin-top:8px">Con 0 minutos la zona no se riega.</p>
+</section>
+<details class="card" id="setup"><summary>Conexión MQTT</summary>
+<form class="f" id="form">
 <label>Servidor (WebSocket)<input id="url" placeholder="wss://xxxx.emqxsl.com:8084/mqtt" required></label>
-<label>Usuario<input id="user" autocomplete="username" required></label>
+<label>Usuario<input id="user" autocomplete="username" autocapitalize="off" required></label>
 <label>Contraseña<input id="pass" type="password" autocomplete="current-password" required></label>
-<label>Tema base<input id="base" value="riego/casa" required></label>
-<button class="pri">Guardar y conectar</button>
+<label>Tema base<input id="base" value="riego/casa" autocapitalize="off" required></label>
+<button class="save">Guardar y conectar</button>
 <p class="hint">Se guarda solo en este navegador.</p>
 </form></details>
 </main>
+<div class="bar"><div><button class="save" id="saveBtn" onclick="send()">Guardar en el ESP32</button><div id="msg"></div></div></div>
 <script>
 const $=id=>document.getElementById(id);
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const fm=m=>m>=60?Math.floor(m/60)+' h '+(m%60?m%60+' min':''):m+' min';
-const mmss=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
-let S=null,client=null,st=null,cfg=null,off=0,online=null,conn=false,timer=null;
+const DN=['L','M','X','J','V','S','D'],DL=['lunes','martes','miércoles','jueves','viernes','sábado','domingo'];
+const fm=m=>m>=60?Math.floor(m/60)+' h'+(m%60?' '+m%60+' min':''):m+' min';
+let S=null,client=null,conn=false,online=null,remote=null,changed=false,sent=false;
+let cfg={days:[true,true,true,true,true,true,true],starts:['07:00'],zones:[15,10,20,10,5,15]};
 try{S=JSON.parse(localStorage.getItem('riego-mqtt'))}catch(e){}
+const key=c=>JSON.stringify({days:c.days.map(Boolean),starts:[...c.starts].sort(),zones:c.zones.map(Number)});
 
-$('garden').innerHTML=[0,1,2,3,4,5].map(i=>`<div class="bed" id="b${i}" onclick="cmd('run:${i}')"><span class="n" id="bn${i}">${i+1}</span><span class="r"></span><span class="r r2"></span><span class="h"></span><span class="s" id="bs${i}"></span><span class="bar" id="bb${i}"></span></div>`).join('');
-
+function render(){
+  $('days').innerHTML=DN.map((d,i)=>`<button aria-pressed="${cfg.days[i]}" aria-label="${DL[i]}" onclick="cfg.days[${i}]=!cfg.days[${i}];edit()">${d}</button>`).join('');
+  $('starts').innerHTML=cfg.starts.length?cfg.starts.map((s,k)=>`<div class="st"><input type="time" value="${s}" aria-label="Hora de inicio ${k+1}" onchange="setStart(${k},this.value)"><button onclick="cfg.starts.splice(${k},1);edit()">Borrar</button></div>`).join(''):'<p class="hint">Sin horas: no regará.</p>';
+  $('zones').innerHTML=cfg.zones.map((m,i)=>`<div class="z"><b>Zona ${i+1}</b><div class="step"><button onclick="setM(${i},-5)" aria-label="Menos zona ${i+1}">−</button><input type="number" inputmode="numeric" value="${m}" aria-label="Minutos zona ${i+1}" onchange="setM(${i},0,this.value)"><button onclick="setM(${i},5)" aria-label="Más zona ${i+1}">+</button></div></div>`).join('');
+  $('total').textContent=fm(cfg.zones.reduce((a,b)=>a+b,0));
+  status();
+}
+function status(){
+  const m=$('msg');m.className='';
+  if(!S){m.textContent='Configura la conexión MQTT abajo';m.className='warn'}
+  else if(changed){m.textContent='Hay cambios sin guardar';m.className='warn'}
+  else if(sent&&remote&&key(remote)!==key(cfg))m.textContent=online===false?'Enviado. Se guardará cuando el ESP32 se conecte.':'Enviando al ESP32…';
+  else if(remote&&key(remote)===key(cfg)){m.textContent='Guardado en el ESP32'+(remote.saved?' · '+remote.saved:'');m.className='ok'}
+  else m.textContent=conn?'Esperando datos del ESP32…':'';
+  $('saveBtn').disabled=!conn;
+}
+function badge(){
+  const b=$('badge');
+  if(!S){b.className='badge';b.innerHTML='<i></i>Sin configurar';}
+  else if(!conn){b.className='badge bad';b.innerHTML='<i></i>Sin conexión con el servidor';}
+  else if(online===false){b.className='badge bad';b.innerHTML='<i></i>ESP32 desconectado (sigue regando con lo guardado)';}
+  else if(online){b.className='badge ok';b.innerHTML='<i></i>ESP32 conectado';}
+  else{b.className='badge';b.innerHTML='<i></i>Conectado al servidor';}
+  status();
+}
+function edit(){changed=true;sent=false;render()}
+function setDays(a){cfg.days=a.map(Boolean);edit()}
+function setStart(k,v){if(!v)return;if(cfg.starts.includes(v)){render();return}cfg.starts[k]=v;cfg.starts.sort();edit()}
+function addStart(){const v=$('ns').value;if(v&&!cfg.starts.includes(v)&&cfg.starts.length<8){cfg.starts.push(v);cfg.starts.sort();edit()}}
+function setM(i,d,v){cfg.zones[i]=Math.min(240,Math.max(0,v!=null?Math.round(+v||0):cfg.zones[i]+d));edit()}
+function send(){
+  if(!conn)return;
+  const body={days:cfg.days,starts:[...cfg.starts].sort(),zones:cfg.zones};
+  client.publish(S.base+'/config',JSON.stringify(body),{qos:1,retain:true});
+  changed=false;sent=true;status();
+}
 function connect(){
   if(client)client.end(true);
   conn=false;badge();
@@ -71,75 +120,23 @@ function connect(){
   client.on('connect',()=>{conn=true;client.subscribe([S.base+'/estado',S.base+'/online']);badge()});
   client.on('close',()=>{conn=false;badge()});
   client.on('reconnect',()=>{const b=$('badge');b.className='badge';b.innerHTML='<i></i>Reconectando…'});
-  client.on('error',e=>{$('sub').textContent='Error MQTT: '+e.message});
+  client.on('error',e=>{$('msg').textContent='Error: '+e.message;$('msg').className='warn'});
   client.on('message',(tp,msg)=>{
     const s=msg.toString();
     if(tp===S.base+'/online'){online=s==='1';badge();return}
-    try{use(JSON.parse(s))}catch(e){}
+    try{const j=JSON.parse(s);remote={days:j.days,starts:j.starts,zones:j.zones,saved:j.saved};
+      if(!changed&&!sent){cfg={days:[...j.days],starts:[...j.starts],zones:[...j.zones]};render()}
+      if(sent&&key(remote)===key(cfg))sent=false;
+      status()}catch(e){}
   });
 }
-function badge(){
-  const b=$('badge');
-  if(!S){b.className='badge';b.innerHTML='<i></i>Configura la conexión abajo';return}
-  if(!conn){b.className='badge bad';b.innerHTML='<i></i>Sin conexión con el servidor';return}
-  if(online===false){b.className='badge bad';b.innerHTML='<i></i>ESP32 desconectado';return}
-  b.className='badge ok';b.innerHTML='<i></i>Conectado';
-}
-function use(j){
-  st=j;if(j.now)off=j.now-Date.now()/1000;
-  const remote=JSON.stringify({zones:j.zones,starts:j.starts});
-  if(!timer&&(!cfg||JSON.stringify(cfg)!==remote)){cfg=JSON.parse(remote);cfgView()}
-  $('log').innerHTML=(j.log||[]).map(l=>{const[a,b]=l.split('|');return `<li><b>${esc(a)}</b>${esc(b)}</li>`}).join('');
-  live();
-}
-function live(){
-  if(!st)return;
-  $('clock').textContent=st.now?new Date(Date.now()+off*1000).toLocaleTimeString('es-ES',{timeZone:'Europe/Madrid'}):'--:--';
-  const cur=st.running?st.list[st.idx]:-1;
-  const left=st.running?Math.max(0,Math.round(st.end-(Date.now()/1000+off))):0;
-  st.zones.forEach((z,i)=>{let s=z.m+' min',c='bed',w=0;
-    if(i===cur){s='Regando · '+mmss(left);c+=' on';w=100*(1-left/(st.dur||1))}
-    else if(z.m===0){s='Desactivada';c+=' off'}
-    else if(st.running&&st.list.slice(st.idx+1).includes(i))s='En cola';
-    else if(st.running&&st.list.slice(0,st.idx).includes(i)){s='Hecho';c+=' done'}
-    $('b'+i).className=c;$('bn'+i).textContent=(i+1)+' · '+z.n;$('bs'+i).textContent=s;$('bb'+i).style.width=w+'%'});
-  if(st.running){$('big').textContent='Regando '+st.zones[cur].n+' · '+mmss(left);$('sub').textContent=`Zona ${st.idx+1} de ${st.list.length}`+(st.pending?` · ${st.pending} en espera`:'')}
-  else{$('big').textContent=st.now?'En espera':'El ESP32 aún no tiene hora';
-    const nx=nextStart();$('sub').textContent=nx?'Próximo riego a las '+nx+' · '+fm(st.zones.reduce((a,z)=>a+z.m,0)):'Sin horas de inicio'}
-  $('skip').disabled=$('stop').disabled=!st.running;
-}
-function nextStart(){
-  if(!st.starts.length)return null;
-  const d=new Date(Date.now()+off*1000).toLocaleTimeString('es-ES',{timeZone:'Europe/Madrid',hour:'2-digit',minute:'2-digit',hour12:false});
-  return st.starts.find(s=>s>d)||st.starts[0];
-}
-function cfgView(){
-  $('zones').innerHTML=cfg.zones.map((z,i)=>`<div class="z"><input class="name" value="${esc(z.n)}" maxlength="18" aria-label="Nombre zona ${i+1}" onchange="cfg.zones[${i}].n=this.value;save()">
-<div class="step"><button onclick="setM(${i},-5)" aria-label="Menos">−</button><input type="number" inputmode="numeric" value="${z.m}" aria-label="Minutos zona ${i+1}" onchange="setM(${i},0,this.value)"><button onclick="setM(${i},5)" aria-label="Más">+</button></div>
-<button onclick="cmd('run:${i}')" aria-label="Probar zona ${i+1}">▶</button></div>`).join('');
-  $('total').textContent=fm(cfg.zones.reduce((a,z)=>a+z.m,0));
-  $('starts').innerHTML=cfg.starts.length?cfg.starts.map((s,k)=>`<div class="st"><input type="time" value="${s}" onchange="if(this.value){cfg.starts[${k}]=this.value;cfg.starts.sort();save()}"><span></span><button onclick="cfg.starts.splice(${k},1);save()">Borrar</button></div>`).join(''):'<p class="hint">Sin horas de inicio.</p>';
-}
-function setM(i,d,v){const z=cfg.zones[i];z.m=Math.min(240,Math.max(0,v!=null?Math.round(+v||0):z.m+d));save()}
-function addStart(){const v=$('ns').value;if(cfg&&v&&!cfg.starts.includes(v)&&cfg.starts.length<8){cfg.starts.push(v);cfg.starts.sort();save()}}
-function save(){
-  cfgView();clearTimeout(timer);
-  timer=setTimeout(()=>{timer=null;if(conn)client.publish(S.base+'/config',JSON.stringify(cfg));else $('sub').textContent='Sin conexión: no se ha guardado'},600);
-}
-function cmd(c){if(conn)client.publish(S.base+'/cmd',c);else $('sub').textContent='Sin conexión con el servidor'}
-
 $('form').addEventListener('submit',e=>{e.preventDefault();
   S={url:$('url').value.trim(),user:$('user').value.trim(),pass:$('pass').value,base:$('base').value.trim().replace(/\/$/,'')};
   try{localStorage.setItem('riego-mqtt',JSON.stringify(S))}catch(e){}
   $('setup').open=false;connect()});
 if(S){$('url').value=S.url;$('user').value=S.user;$('base').value=S.base;connect()}else $('setup').open=true;
-badge();setInterval(live,500);
-// iPhone/Android cortan la conexión al bloquear la pantalla o cambiar de app: al volver, reconecta al momento
+render();badge();
 let hiddenAt=0;
-document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='hidden'){hiddenAt=Date.now();return}
-  if(S&&(!conn||Date.now()-hiddenAt>5000))connect();
-});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){hiddenAt=Date.now();return}if(S&&(!conn||Date.now()-hiddenAt>5000))connect()});
 window.addEventListener('pageshow',e=>{if(e.persisted&&S)connect()});
-window.addEventListener('online',()=>{if(S&&!conn)connect()});
 </script></body></html>
