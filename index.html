@@ -12,7 +12,16 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--water);outline-
 .top{background:var(--deep);color:#eaf3e6;padding:18px 14px}
 .top div{max-width:640px;margin:0 auto}
 h1{font-size:24px;margin:0}
-.clk{margin-top:12px;display:none}.clk.on{display:block}.clk b{font-size:clamp(34px,10vw,46px);font-weight:800;line-height:1;font-variant-numeric:tabular-nums;display:block}.clk span{font-size:15px;color:#b8d2bb}.clk .x{display:inline-block;background:#f3b63f;color:#113420;border-radius:8px;padding:0 8px;font-weight:800;margin-right:6px}
+.clocks{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:14px}
+.clk{background:#ffffff12;border:1px solid #ffffff26;border-radius:14px;padding:10px 12px}
+.clk small{display:block;font-size:13px;color:#b8d2bb}
+.clk b{display:block;font-size:clamp(24px,7vw,34px);font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.clk span{display:block;font-size:13px;color:#cfe3d1;margin-top:2px}
+.clk.stale b{opacity:.45}
+.clk .x{display:inline-block;background:#f3b63f;color:#113420;border-radius:8px;padding:0 7px;font-weight:800;margin-right:6px}
+.log{list-style:none;margin:0;padding:0;max-height:320px;overflow:auto;font-size:14px}
+.log li{display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--line)}.log li:first-child{border-top:0}
+.log time{color:var(--mut);white-space:nowrap;font-variant-numeric:tabular-nums;min-width:62px}
 .badge{font-size:14px;color:#b8d2bb}.badge i{display:inline-block;width:9px;height:9px;border-radius:50%;background:#888;margin-right:6px}
 .badge.ok i{background:#5fd36b}.badge.bad i{background:#ff6b57}
 main{max-width:640px;margin:0 auto;padding:16px 14px 120px;display:grid;gap:14px}
@@ -42,7 +51,10 @@ h2{font-size:18px;margin:0 0 10px}
 .f{display:grid;gap:10px;margin-top:12px}.f label{display:grid;gap:4px;font-size:14px;font-weight:600}
 summary{cursor:pointer;font-weight:700}
 </style></head><body>
-<header class="top"><div><h1>Programa de riego</h1><div class="badge" id="badge"><i></i>Sin conectar</div><div class="clk" id="clk"><b id="clkT"></b><span id="clkS"></span></div></div></header>
+<header class="top"><div><h1>Programa de riego</h1><div class="badge" id="badge"><i></i>Sin conectar</div><div class="clocks">
+<div class="clk stale" id="clk"><small>Reloj del ESP32</small><b id="clkT">--:--</b><span id="clkS">Sin datos todavía</span></div>
+<div class="clk"><small>Hora de este dispositivo</small><b id="devT">--:--</b><span id="devS"></span></div>
+</div></div></header>
 <main>
 <section class="card"><h2>Días de riego</h2>
 <div class="days" id="days"></div>
@@ -58,6 +70,7 @@ summary{cursor:pointer;font-weight:700}
 <div class="tot"><span>Cada ciclo dura</span><span id="total"></span></div>
 <p class="hint" style="margin-top:8px">Con 0 minutos la zona no se riega.</p>
 </section>
+<section class="card"><h2>Registro del ESP32</h2><ul class="log" id="log"><li><span class="hint">Aparecerá al conectar con el ESP32.</span></li></ul></section>
 <details class="card" id="setup"><summary>Conexión MQTT</summary>
 <form class="f" id="form">
 <label>Servidor (WebSocket)<input id="url" placeholder="wss://xxxx.emqxsl.com:8084/mqtt" required></label>
@@ -116,25 +129,36 @@ function send(){
 }
 const DW={L:'Lunes',M:'Martes',X:'Miércoles',J:'Jueves',V:'Viernes',S:'Sábado',D:'Domingo'};
 let lastClk=0;
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function clock(c){
   lastClk=Date.now();
-  $('clk').className='clk on';
-  $('clkT').textContent=(DW[c.d]||'')+' '+c.t;
+  $('clk').className='clk';
+  $('clkT').textContent=(DW[c.d]||'').slice(0,3)+' '+c.t;
   const x=c.x>1?`<span class="x">x${c.x}</span>`:'';
   const st=c.z?`Regando zona ${c.z} · quedan ${Math.floor(c.left/60)}:${String(c.left%60).padStart(2,'0')}`:'En espera';
   $('clkS').innerHTML=x+st;
 }
-setInterval(()=>{if(lastClk&&Date.now()-lastClk>5000)$('clk').className='clk'},1000);
+function showLog(a){
+  $('log').innerHTML=a.length?a.map(l=>{const i=l.indexOf('|');return `<li><time>${esc(l.slice(0,i))}</time><span>${esc(l.slice(i+1))}</span></li>`}).join(''):'<li><span class="hint">Sin eventos.</span></li>';
+}
+function devClock(){
+  const d=new Date();
+  $('devT').textContent=d.toLocaleDateString('es-ES',{weekday:'short'}).replace('.','')+' '+d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  $('devS').textContent=d.toLocaleDateString('es-ES',{day:'numeric',month:'long'});
+  if(lastClk&&Date.now()-lastClk>25000){$('clk').className='clk stale';$('clkS').textContent='Sin datos recientes del ESP32'}
+}
+devClock();setInterval(devClock,1000);
 function connect(){
   if(client)client.end(true);
   conn=false;badge();
   client=mqtt.connect(S.url,{username:S.user,password:S.pass,clientId:'web-'+Math.random().toString(16).slice(2,10),reconnectPeriod:4000,connectTimeout:10000});
-  client.on('connect',()=>{conn=true;client.subscribe([S.base+'/estado',S.base+'/online',S.base+'/reloj']);badge()});
+  client.on('connect',()=>{conn=true;client.subscribe([S.base+'/estado',S.base+'/online',S.base+'/reloj',S.base+'/log']);badge()});
   client.on('close',()=>{conn=false;badge()});
   client.on('reconnect',()=>{const b=$('badge');b.className='badge';b.innerHTML='<i></i>Reconectando…'});
   client.on('error',e=>{$('msg').textContent='Error: '+e.message;$('msg').className='warn'});
   client.on('message',(tp,msg)=>{
     const s=msg.toString();
+    if(tp===S.base+'/log'){try{showLog(JSON.parse(s))}catch(e){}return}
     if(tp===S.base+'/reloj'){try{clock(JSON.parse(s))}catch(e){}return}
     if(tp===S.base+'/online'){online=s==='1';badge();return}
     try{const j=JSON.parse(s);remote={days:j.days,starts:j.starts,zones:j.zones,saved:j.saved};
